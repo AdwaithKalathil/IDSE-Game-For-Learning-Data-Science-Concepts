@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An interactive data science game about polynomial regression, underfitting, and overfitting.">
+  <title>Overfitting Arena | Intro to Data Science</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #647087;
+      --paper: #f3f5f9;
+      --panel: #ffffff;
+      --line: #e1e6ef;
+      --blue: #3268d5;
+      --blue-soft: #edf3ff;
+      --orange: #e58b35;
+      --orange-soft: #fff4e8;
+      --green: #21845b;
+      --red: #c34d4d;
+      --shadow: 0 12px 32px rgba(22, 36, 64, .07);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); }
+    button, input { font: inherit; }
+    .page { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 30px 0 46px; }
+    header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 22px; }
+    .eyebrow { margin: 0 0 7px; color: var(--blue); font-size: .73rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.05rem); line-height: 1.02; letter-spacing: -.045em; }
+    .subtitle { max-width: 650px; margin: 11px 0 0; color: var(--muted); line-height: 1.55; }
+    .header-stats { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+    .stat-chip { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 9px 13px; min-width: 112px; }
+    .stat-chip span { display: block; color: var(--muted); font-size: .69rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+    .stat-chip strong { display: block; margin-top: 2px; font-size: 1.13rem; font-variant-numeric: tabular-nums; }
+    .status-strip { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; margin-bottom: 14px; background: #202b43; color: white; border-radius: 14px; }
+    .status-strip strong { font-size: .94rem; }
+    .status-strip span { color: #c4cde0; font-size: .84rem; }
+    .round-dots { display: flex; gap: 6px; }
+    .round-dot { width: 8px; height: 8px; border-radius: 50%; background: #68758f; }
+    .round-dot.active { background: #ffd18a; box-shadow: 0 0 0 3px rgba(255,209,138,.18); }
+    .round-dot.done { background: #79d3a9; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(320px, .88fr); gap: 14px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--shadow); }
+    .panel-inner { padding: 19px; }
+    .panel-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 15px; }
+    h2 { margin: 0; font-size: 1.08rem; letter-spacing: -.02em; }
+    h3 { margin: 0; font-size: .91rem; }
+    .subhead { color: var(--muted); margin: 5px 0 0; font-size: .83rem; line-height: 1.45; }
+    .tag { display: inline-flex; align-items: center; border-radius: 999px; background: var(--blue-soft); color: var(--blue); padding: 5px 9px; font-size: .7rem; font-weight: 800; white-space: nowrap; }
+    .degree-control { border: 1px solid var(--line); border-radius: 13px; padding: 13px 14px 11px; margin-bottom: 13px; background: #fbfcfe; }
+    .degree-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .degree-top label { font-size: .84rem; font-weight: 750; }
+    .degree-value { color: var(--blue); font-size: 1.25rem; font-weight: 850; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: var(--blue); cursor: pointer; }
+    .range-labels { display: flex; justify-content: space-between; color: #8590a3; font-size: .72rem; margin-top: 3px; }
+    .chart-wrap { position: relative; width: 100%; }
+    canvas { display: block; width: 100%; }
+    #fitChart { height: 310px; }
+    #errorChart { height: 238px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 9px 2px 0; color: var(--muted); font-size: .75rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .key-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .key-line { width: 17px; height: 3px; display: inline-block; border-radius: 3px; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; margin-top: 15px; }
+    .metric { padding: 12px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+    .metric-label { color: var(--muted); font-size: .7rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+    .metric-value { display: block; margin-top: 5px; font-size: 1.14rem; font-weight: 850; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .metric small { display: block; color: var(--muted); font-size: .68rem; margin-top: 3px; line-height: 1.35; }
+    .metric.train { background: var(--blue-soft); border-color: #dce7ff; }
+    .metric.test { background: var(--orange-soft); border-color: #f5e3cf; }
+    .metric.score { background: #eff8f3; border-color: #d9eee2; }
+    .action-row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-top: 15px; }
+    button { border: 0; border-radius: 10px; padding: 11px 15px; font-weight: 760; font-size: .83rem; cursor: pointer; transition: transform .12s ease, opacity .12s ease, background .12s ease; }
+    button:hover:not(:disabled) { transform: translateY(-1px); }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(50,104,213,.3); outline-offset: 2px; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    .primary { background: var(--blue); color: white; }
+    .secondary { background: #eef1f6; color: var(--ink); }
+    .small-note { color: var(--muted); font-size: .75rem; line-height: 1.45; margin: 10px 1px 0; }
+    .side-stack { display: grid; gap: 14px; }
+    .guide { padding: 18px 19px; }
+    .guide ol { margin: 12px 0 0; padding-left: 19px; color: #455168; font-size: .83rem; line-height: 1.55; }
+    .guide li + li { margin-top: 7px; }
+    .concept-note { margin-top: 14px; border-left: 3px solid var(--orange); background: #fff8ef; padding: 10px 12px; color: #68491f; border-radius: 0 9px 9px 0; font-size: .78rem; line-height: 1.5; }
+    .chart-panel { padding: 18px 18px 13px; }
+    .chart-note { color: var(--muted); margin: 6px 0 0; font-size: .76rem; line-height: 1.45; }
+    .result { display: none; margin-top: 14px; padding: 15px 16px; border: 1px solid #dce7ff; border-radius: 13px; background: #f5f8ff; }
+    .result.visible { display: block; }
+    .result h3 { margin-bottom: 7px; }
+    .result p { margin: 5px 0 0; color: #455168; font-size: .82rem; line-height: 1.5; }
+    .result strong { color: var(--ink); }
+    .summary { display: none; margin-top: 15px; }
+    .summary.visible { display: block; }
+    .summary .panel-inner { padding: 21px; }
+    .summary h2 { font-size: 1.25rem; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+    .summary-cell { border: 1px solid var(--line); border-radius: 11px; padding: 11px 12px; }
+    .summary-cell span { display: block; color: var(--muted); font-size: .7rem; }
+    .summary-cell strong { display: block; font-size: 1.15rem; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .learned { margin: 10px 0 0; padding-left: 18px; color: #455168; font-size: .84rem; line-height: 1.6; }
+    .export-control { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .export-control label { color: var(--muted); font-size: .78rem; font-weight: 700; }
+    .export-control input { width: min(190px, 100%); min-width: 130px; border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; color: var(--ink); background: #fff; font-size: .82rem; }
+    .footer { color: #8490a4; text-align: center; font-size: .72rem; margin-top: 20px; }
+    @media (max-width: 880px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .header-stats { justify-content: flex-start; }
+      .layout { grid-template-columns: 1fr; }
+      .side-stack { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 540px) {
+      .page { width: min(100% - 22px, 1180px); padding-top: 22px; }
+      .panel-inner, .guide, .chart-panel { padding: 14px; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .metric.score { grid-column: span 2; }
+      #fitChart { height: 260px; }
+      #errorChart { height: 220px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .status-strip { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <p class="eyebrow">Intro to Data Science · Interactive lab</p>
+        <h1>Overfitting Arena</h1>
+        <p class="subtitle">Fit a curve to noisy observations. Find the complexity that predicts unseen data—not just the points you trained on.</p>
+      </div>
+      <div class="header-stats" aria-label="Game statistics">
+        <div class="stat-chip"><span>Attempts</span><strong id="attemptCount">0</strong></div>
+        <div class="stat-chip"><span>Rounds cleared</span><strong id="roundCount">0 / 2</strong></div>
+        <div class="stat-chip"><span>Average score</span><strong id="averageScore">—</strong></div>
+      </div>
+    </header>
+
+    <div class="status-strip">
+      <div><strong id="roundTitle">Round 1 · Find the balance</strong><br><span id="roundSubtitle">Explore the curve, then lock in your prediction.</span></div>
+      <div class="round-dots" aria-label="Round progress"><span class="round-dot active" id="dot1"></span><span class="round-dot" id="dot2"></span></div>
+    </div>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-inner">
+          <div class="panel-heading">
+            <div><h2>Model workbench</h2><p class="subhead">Change polynomial degree and watch the fitted curve respond.</p></div>
+            <span class="tag" id="datasetTag">New random dataset</span>
+          </div>
+
+          <div class="degree-control">
+            <div class="degree-top"><label for="degreeSlider">Polynomial degree</label><output class="degree-value" id="degreeValue" for="degreeSlider">3</output></div>
+            <input id="degreeSlider" type="range" min="1" max="10" step="1" value="3" aria-label="Polynomial degree">
+            <div class="range-labels"><span>1 · Simple</span><span>10 · Flexible</span></div>
+          </div>
+
+          <div class="chart-wrap"><canvas id="fitChart" role="img" aria-label="Scatter plot of training observations and the fitted polynomial curve"></canvas></div>
+          <div class="legend">
+            <span class="legend-item"><i class="key-dot" style="background:#3268d5"></i>Training observations</span>
+            <span class="legend-item" id="testLegend" hidden><i class="key-dot" style="background:#a6a0d8"></i>Held-out observations</span>
+            <span class="legend-item"><i class="key-line" style="background:#e58b35"></i>Fitted polynomial</span>
+          </div>
+
+          <div class="metrics">
+            <div class="metric train"><span class="metric-label">Training MSE</span><strong class="metric-value" id="trainMse">—</strong><small>Updates as you move the slider</small></div>
+            <div class="metric test"><span class="metric-label">Held-out test MSE</span><strong class="metric-value" id="testMse">SEALED</strong><small id="testMseHint">Lock a guess to reveal it</small></div>
+            <div class="metric score"><span class="metric-label">Current score</span><strong class="metric-value" id="currentScore">—</strong><small id="scoreHint">Score is based on test error</small></div>
+          </div>
+
+          <div class="action-row">
+            <button class="primary" id="lockButton">Lock degree 3 as my guess</button>
+            <button class="secondary" id="nextButton" hidden>Start Round 2</button>
+            <button class="secondary" id="restartButton" hidden>Play again</button>
+          </div>
+          <p class="small-note" id="workbenchNote">The test set is held back while you explore. Training error is useful, but it cannot tell you by itself how well a model will generalize.</p>
+
+          <div class="result" id="resultBox" aria-live="polite">
+            <h3 id="resultTitle">Round result</h3>
+            <p id="resultText"></p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side-stack">
+        <section class="panel guide">
+          <div class="panel-heading"><div><h2>How to play</h2><p class="subhead">Your objective: choose the degree with the lowest unseen-data error.</p></div></div>
+          <ol>
+            <li>Move the degree slider from 1 to 10. Watch how the curve changes and how training MSE responds.</li>
+            <li>Before the test results are shown, choose the degree you think will generalize best and lock it in.</li>
+            <li>Compare your guess with the degree that actually has the lowest held-out test MSE.</li>
+            <li>After the reveal, move the slider again. Both errors and the score update, so you can investigate the trade-off.</li>
+          </ol>
+          <div class="concept-note"><strong>Look for the trap:</strong> a very flexible curve can pass close to nearly every training point yet perform poorly on new observations.</div>
+        </section>
+
+        <section class="panel chart-panel">
+          <div class="panel-heading"><div><h2>Error vs. complexity</h2><p class="chart-note" id="errorChartNote">Training error is visible. The held-out curve is sealed until you lock your guess.</p></div></div>
+          <canvas id="errorChart" role="img" aria-label="Plot of training and held-out error against polynomial degree"></canvas>
+          <div class="legend">
+            <span class="legend-item"><i class="key-line" style="background:#3268d5"></i>Training MSE</span>
+            <span class="legend-item" id="testErrorLegend" hidden><i class="key-line" style="background:#e58b35"></i>Test MSE</span>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <section class="panel summary" id="summaryPanel">
+      <div class="panel-inner">
+        <h2>Learning debrief</h2>
+        <p class="subhead">Across both datasets, your decisions show how model complexity affects generalization.</p>
+        <div class="summary-grid">
+          <div class="summary-cell"><span>Guesses made</span><strong id="summaryAttempts">2</strong></div>
+          <div class="summary-cell"><span>Best-degree guesses</span><strong id="summaryCorrect">—</strong></div>
+          <div class="summary-cell"><span>Mean guess score</span><strong id="summaryScore">—</strong></div>
+        </div>
+        <ul class="learned" id="learningPoints"></ul>
+        <div class="action-row">
+          <button class="primary" id="summaryRestart">Play new datasets</button>
+          <div class="export-control">
+            <label for="exportPlayerName">Player name / ID</label>
+            <input id="exportPlayerName" type="text" maxlength="48" placeholder="e.g. P01" autocomplete="off" required>
+            <button class="secondary" id="exportSessionButton" type="button">Export session data</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer">Overfitting Arena · Polynomial regression is calculated locally in your browser. No data is uploaded.</p>
+  </div>
+
+  <script>
+    "use strict";
+
+    // The two underlying signals differ, so the best degree is not fixed between rounds.
+    const SIGNALS = [
+      {
+        name: "Wavy signal",
+        description: "a smooth wave with a slight trend",
+        fn: (x) => 0.58 * Math.sin(1.25 * Math.PI * x) + 0.22 * x + 0.12 * Math.cos(2 * Math.PI * x)
+      },
+      {
+        name: "Asymmetric signal",
+        description: "a curved trend with an extra oscillation",
+        fn: (x) => 0.42 * x + 0.24 * x * x * x + 0.34 * Math.sin(1.65 * Math.PI * x) - 0.08
+      }
+    ];
+    const MIN_DEGREE = 1;
+    const MAX_DEGREE = 10;
+    const TRAIN_COUNT = 32;
+    const TEST_COUNT = 240;
+
+    const ui = {
+      slider: document.getElementById("degreeSlider"),
+      degreeValue: document.getElementById("degreeValue"),
+      trainMse: document.getElementById("trainMse"),
+      testMse: document.getElementById("testMse"),
+      testMseHint: document.getElementById("testMseHint"),
+      currentScore: document.getElementById("currentScore"),
+      scoreHint: document.getElementById("scoreHint"),
+      lockButton: document.getElementById("lockButton"),
+      nextButton: document.getElementById("nextButton"),
+      restartButton: document.getElementById("restartButton"),
+      resultBox: document.getElementById("resultBox"),
+      resultTitle: document.getElementById("resultTitle"),
+      resultText: document.getElementById("resultText"),
+      workbenchNote: document.getElementById("workbenchNote"),
+      errorChartNote: document.getElementById("errorChartNote"),
+      datasetTag: document.getElementById("datasetTag"),
+      roundTitle: document.getElementById("roundTitle"),
+      roundSubtitle: document.getElementById("roundSubtitle"),
+      attemptCount: document.getElementById("attemptCount"),
+      roundCount: document.getElementById("roundCount"),
+      averageScore: document.getElementById("averageScore"),
+      dot1: document.getElementById("dot1"),
+      dot2: document.getElementById("dot2"),
+      testLegend: document.getElementById("testLegend"),
+      testErrorLegend: document.getElementById("testErrorLegend"),
+      summaryPanel: document.getElementById("summaryPanel"),
+      summaryAttempts: document.getElementById("summaryAttempts"),
+      summaryCorrect: document.getElementById("summaryCorrect"),
+      summaryScore: document.getElementById("summaryScore"),
+      learningPoints: document.getElementById("learningPoints"),
+      exportPlayerName: document.getElementById("exportPlayerName"),
+      exportSessionButton: document.getElementById("exportSessionButton")
+    };
+    const fitCanvas = document.getElementById("fitChart");
+    const errorCanvas = document.getElementById("errorChart");
+
+    let roundNumber = 1;
+    let currentDegree = 3;
+    let roundData = null;
+    let roundResults = [];
+    let phase = "explore"; // explore -> revealed -> next round / complete
+    let records = [];
+    let roundSignals = [];
+    let lastSignalIndex = -1;
+
+    function randomNormal() {
+      // Box-Muller transform: a standard normal sample from Math.random().
+      let u = 0;
+      let v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    function generateObservations(count, signal, noiseStd) {
+      const points = Array.from({ length: count }, () => {
+        const x = -1 + 2 * Math.random();
+        return { x, y: signal.fn(x) + randomNormal() * noiseStd };
+      });
+      points.sort((a, b) => a.x - b.x);
+      return points;
+    }
+
+    // Householder QR least squares. This is more numerically stable than solving
+    // the normal equations for the Vandermonde matrix used by polynomial fitting.
+    function fitPolynomial(points, degree) {
+      const rowCount = points.length;
+      const columnCount = degree + 1;
+      const matrix = points.map(({ x }) => {
+        const row = new Array(columnCount);
+        row[0] = 1;
+        for (let col = 1; col < columnCount; col++) row[col] = row[col - 1] * x;
+        return row;
+      });
+      const rhs = points.map(({ y }) => y);
+
+      for (let k = 0; k < columnCount; k++) {
+        let norm = 0;
+        for (let row = k; row < rowCount; row++) norm = Math.hypot(norm, matrix[row][k]);
+        if (norm < 1e-12) throw new Error("The polynomial fit became numerically singular.");
+        const alpha = matrix[k][k] >= 0 ? -norm : norm;
+        const vector = [];
+        for (let row = k; row < rowCount; row++) vector.push(matrix[row][k]);
+        vector[0] -= alpha;
+        let vectorNormSquared = 0;
+        for (const value of vector) vectorNormSquared += value * value;
+        if (vectorNormSquared < 1e-24) continue;
+        const beta = 2 / vectorNormSquared;
+
+        for (let col = k; col < columnCount; col++) {
+          let projection = 0;
+          for (let i = 0; i < vector.length; i++) projection += vector[i] * matrix[k + i][col];
+          projection *= beta;
+          for (let i = 0; i < vector.length; i++) matrix[k + i][col] -= projection * vector[i];
+        }
+        let rhsProjection = 0;
+        for (let i = 0; i < vector.length; i++) rhsProjection += vector[i] * rhs[k + i];
+        rhsProjection *= beta;
+        for (let i = 0; i < vector.length; i++) rhs[k + i] -= rhsProjection * vector[i];
+      }
+
+      const coefficients = new Array(columnCount).fill(0);
+      for (let row = columnCount - 1; row >= 0; row--) {
+        let value = rhs[row];
+        for (let col = row + 1; col < columnCount; col++) value -= matrix[row][col] * coefficients[col];
+        const diagonal = matrix[row][row];
+        if (Math.abs(diagonal) < 1e-12) throw new Error("Could not solve the polynomial fit.");
+        coefficients[row] = value / diagonal;
+      }
+      return coefficients;
+    }
+
+    function predict(coefficients, x) {
+      // Horner's method avoids repeatedly computing x^degree.
+      let value = 0;
+      for (let i = coefficients.length - 1; i >= 0; i--) value = value * x + coefficients[i];
+      return value;
+    }
+
+    function meanSquaredError(points, coefficients) {
+      let sum = 0;
+      for (const point of points) {
+        const residual = point.y - predict(coefficients, point.x);
+        sum += residual * residual;
+      }
+      return sum / points.length;
+    }
+
+    function buildRound(number) {
+      let signalIndex = Math.floor(Math.random() * SIGNALS.length);
+      if (number > 1 && signalIndex === lastSignalIndex) signalIndex = (signalIndex + 1) % SIGNALS.length;
+      lastSignalIndex = signalIndex;
+      const signal = SIGNALS[signalIndex];
+      const noiseStd = 0.20 + Math.random() * 0.12;
+      const train = generateObservations(TRAIN_COUNT, signal, noiseStd);
+      const test = generateObservations(TEST_COUNT, signal, noiseStd);
+      const results = [];
+
+      for (let degree = MIN_DEGREE; degree <= MAX_DEGREE; degree++) {
+        const coefficients = fitPolynomial(train, degree);
+        results.push({
+          degree,
+          coefficients,
+          trainMse: meanSquaredError(train, coefficients),
+          testMse: meanSquaredError(test, coefficients)
+        });
+      }
+      const best = results.reduce((bestSoFar, item) => item.testMse < bestSoFar.testMse ? item : bestSoFar, results[0]);
+      return { signal, noiseStd, train, test, results, bestDegree: best.degree };
+    }
+
+    function currentResult() {
+      return roundData.results[currentDegree - MIN_DEGREE];
+    }
+
+    function scoreForDegree(degree) {
+      const bestError = roundData.results[roundData.bestDegree - MIN_DEGREE].testMse;
+      const chosenError = roundData.results[degree - MIN_DEGREE].testMse;
+      return Math.max(0, Math.min(100, Math.round(100 * bestError / Math.max(chosenError, 1e-12))));
+    }
+
+    function formatMse(value) {
+      if (!Number.isFinite(value)) return "—";
+      return value < 0.001 ? value.toExponential(2) : value.toFixed(4);
+    }
+
+    function canvasContext(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(280, rect.width);
+      const height = Math.max(180, rect.height);
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, width, height };
+    }
+
+    function drawAxes(ctx, plot, xTicks, yMin, yMax, xFormatter, yFormatter) {
+      ctx.save();
+      ctx.strokeStyle = "#e9edf4";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#7c879a";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= 4; i++) {
+        const y = plot.top + (plot.height * i / 4);
+        const value = yMax - (yMax - yMin) * i / 4;
+        ctx.beginPath(); ctx.moveTo(plot.left, y); ctx.lineTo(plot.left + plot.width, y); ctx.stroke();
+        ctx.fillText(yFormatter(value), plot.left - 8, y);
+      }
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (const tick of xTicks) {
+        const x = plot.left + (tick.position * plot.width);
+        ctx.beginPath(); ctx.moveTo(x, plot.top); ctx.lineTo(x, plot.top + plot.height); ctx.stroke();
+        ctx.fillText(xFormatter(tick.value), x, plot.top + plot.height + 7);
+      }
+      ctx.strokeStyle = "#aeb8c8";
+      ctx.beginPath(); ctx.moveTo(plot.left, plot.top + plot.height); ctx.lineTo(plot.left + plot.width, plot.top + plot.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(plot.left, plot.top); ctx.lineTo(plot.left, plot.top + plot.height); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFitChart() {
+      if (!roundData) return;
+      const { ctx, width, height } = canvasContext(fitCanvas);
+      ctx.clearRect(0, 0, width, height);
+      const showTest = phase !== "explore";
+      const margin = { left: 49, right: 15, top: 13, bottom: 33 };
+      const plot = { left: margin.left, top: margin.top, width: width - margin.left - margin.right, height: height - margin.top - margin.bottom };
+      const allY = roundData.train.map(p => p.y).concat(showTest ? roundData.test.map(p => p.y) : []);
+      const lineValues = Array.from({ length: 201 }, (_, i) => predict(currentResult().coefficients, -1 + 2 * i / 200));
+      const minY = Math.min(...allY, ...lineValues);
+      const maxY = Math.max(...allY, ...lineValues);
+      const pad = Math.max(.12, (maxY - minY) * .12);
+      const yMin = minY - pad;
+      const yMax = maxY + pad;
+      const px = x => plot.left + ((x + 1) / 2) * plot.width;
+      const py = y => plot.top + ((yMax - y) / (yMax - yMin)) * plot.height;
+
+      drawAxes(ctx, plot,
+        [{ value: "-1", position: 0 }, { value: "-0.5", position: .25 }, { value: "0", position: .5 }, { value: "0.5", position: .75 }, { value: "1", position: 1 }],
+        yMin, yMax, value => value, value => value.toFixed(2));
+
+      if (showTest) {
+        ctx.save(); ctx.fillStyle = "#a6a0d8";
+        for (const point of roundData.test) {
+          const x = px(point.x), y = py(point.y);
+          ctx.globalAlpha = .44;
+          ctx.beginPath(); ctx.arc(x, y, 2.3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+      }
+      ctx.save(); ctx.fillStyle = "#3268d5";
+      for (const point of roundData.train) {
+        ctx.beginPath(); ctx.arc(px(point.x), py(point.y), 3.4, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = "#e58b35"; ctx.lineWidth = 2.7; ctx.lineJoin = "round"; ctx.lineCap = "round";
+      ctx.beginPath();
+      for (let i = 0; i <= 240; i++) {
+        const x = -1 + 2 * i / 240;
+        const y = predict(currentResult().coefficients, x);
+        if (i === 0) ctx.moveTo(px(x), py(y)); else ctx.lineTo(px(x), py(y));
+      }
+      ctx.stroke(); ctx.restore();
+
+      ctx.fillStyle = "#68748a"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "left";
+      ctx.fillText("x", plot.left + plot.width - 2, height - 4);
+    }
+
+    function drawSeries(ctx, values, color, plot, yMax, lineWidth, radius) {
+      ctx.save();
+      ctx.strokeStyle = color; ctx.lineWidth = lineWidth; ctx.lineJoin = "round"; ctx.lineCap = "round";
+      ctx.beginPath();
+      values.forEach((item, index) => {
+        const x = plot.left + ((item.degree - 1) / (MAX_DEGREE - 1)) * plot.width;
+        const y = plot.top + (1 - item.mse / yMax) * plot.height;
+        if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.fillStyle = color;
+      values.forEach(item => {
+        const x = plot.left + ((item.degree - 1) / (MAX_DEGREE - 1)) * plot.width;
+        const y = plot.top + (1 - item.mse / yMax) * plot.height;
+        ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawErrorChart() {
+      if (!roundData) return;
+      const { ctx, width, height } = canvasContext(errorCanvas);
+      ctx.clearRect(0, 0, width, height);
+      const showTest = phase !== "explore";
+      const margin = { left: 48, right: 12, top: 12, bottom: 34 };
+      const plot = { left: margin.left, top: margin.top, width: width - margin.left - margin.right, height: height - margin.top - margin.bottom };
+      const trainMax = Math.max(...roundData.results.map(r => r.trainMse));
+      const testMax = Math.max(...roundData.results.map(r => r.testMse));
+      const yMax = Math.max(trainMax, showTest ? testMax : 0) * 1.12 || 1;
+      const xTicks = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), position: i / 9 }));
+      drawAxes(ctx, plot, xTicks, 0, yMax, value => value, value => value.toFixed(2));
+      if (!showTest) {
+        // The held-out curve and values are computed, but kept off-screen until
+        // the player commits to a generalization guess.
+        ctx.save();
+        ctx.fillStyle = "rgba(248, 250, 253, .96)";
+        ctx.fillRect(plot.left + 1, plot.top + 1, plot.width - 2, plot.height - 2);
+        ctx.strokeStyle = "#d8dfeb"; ctx.setLineDash([5, 4]);
+        ctx.strokeRect(plot.left + 1, plot.top + 1, plot.width - 2, plot.height - 2);
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#34415a"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.font = "700 13px system-ui, sans-serif";
+        ctx.fillText("TEST CURVE SEALED", plot.left + plot.width / 2, plot.top + plot.height / 2 - 8);
+        ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = "#718097";
+        ctx.fillText("Lock your degree to reveal the held-out results", plot.left + plot.width / 2, plot.top + plot.height / 2 + 13);
+        ctx.restore();
+      }
+      drawSeries(ctx, roundData.results.map(r => ({ degree: r.degree, mse: r.trainMse })), "#3268d5", plot, yMax, 2.3, 3);
+      if (showTest) {
+        drawSeries(ctx, roundData.results.map(r => ({ degree: r.degree, mse: r.testMse })), "#e58b35", plot, yMax, 2.6, 3.1);
+        const best = roundData.results[roundData.bestDegree - 1];
+        const bestX = plot.left + ((best.degree - 1) / 9) * plot.width;
+        const bestY = plot.top + (1 - best.testMse / yMax) * plot.height;
+        ctx.save(); ctx.strokeStyle = "#21845b"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(bestX, bestY, 8, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      }
+      const selectedX = plot.left + ((currentDegree - 1) / 9) * plot.width;
+      ctx.save(); ctx.strokeStyle = "#1d2638"; ctx.setLineDash([3, 4]); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(selectedX, plot.top); ctx.lineTo(selectedX, plot.top + plot.height); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = "#68748a"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "right";
+      ctx.fillText("Degree", plot.left + plot.width, height - 4);
+    }
+
+    function updateMetrics() {
+      const result = currentResult();
+      ui.degreeValue.textContent = currentDegree;
+      ui.lockButton.textContent = `Lock degree ${currentDegree} as my guess`;
+      ui.trainMse.textContent = formatMse(result.trainMse);
+      if (phase === "explore") {
+        ui.testMse.textContent = "SEALED";
+        ui.testMseHint.textContent = "Lock a guess to reveal it";
+        ui.currentScore.textContent = "—";
+        ui.scoreHint.textContent = "Based on held-out error";
+      } else {
+        ui.testMse.textContent = formatMse(result.testMse);
+        ui.testMseHint.textContent = "Mean squared error on unseen data";
+        ui.currentScore.textContent = `${scoreForDegree(currentDegree)} / 100`;
+        ui.scoreHint.textContent = "Relative to the best test error";
+      }
+      ui.lockButton.disabled = phase !== "explore";
+      ui.nextButton.hidden = phase !== "revealed" || roundNumber !== 1;
+      ui.restartButton.hidden = phase !== "complete";
+      ui.testLegend.hidden = phase === "explore";
+      ui.testErrorLegend.hidden = phase === "explore";
+      drawFitChart();
+      drawErrorChart();
+    }
+
+    function updateHeader() {
+      const completed = records.length;
+      ui.attemptCount.textContent = String(records.length);
+      ui.roundCount.textContent = `${completed} / 2`;
+      ui.averageScore.textContent = completed ? `${Math.round(records.reduce((sum, r) => sum + r.score, 0) / completed)} / 100` : "—";
+      ui.dot1.className = `round-dot${completed >= 1 ? " done" : roundNumber === 1 ? " active" : ""}`;
+      ui.dot2.className = `round-dot${completed >= 2 ? " done" : roundNumber === 2 ? " active" : ""}`;
+    }
+
+    function explainResult(guess, bestDegree) {
+      const guessed = roundData.results[guess - 1];
+      const best = roundData.results[bestDegree - 1];
+      if (guess === bestDegree) {
+        return `You chose degree ${guess}, which had the lowest test MSE in this round. The useful model is not necessarily the one with the smallest training error; it is the one that balances fit with performance on unseen observations.`;
+      }
+      if (guess > bestDegree) {
+        const trainDrop = guessed.trainMse < best.trainMse;
+        return `Degree ${guess} did not generalize as well as degree ${bestDegree}. ${trainDrop ? `Its training MSE (${formatMse(guessed.trainMse)}) is lower, but its test MSE (${formatMse(guessed.testMse)}) is higher: the extra flexibility is fitting noise or sample-specific detail rather than a stable pattern.` : `In this dataset, the more complex fit did not even improve training error enough to justify its added complexity.`} This is the overfitting pattern: training fit can improve while held-out performance gets worse.`;
+      }
+      return `Degree ${guess} was simpler than the best-performing degree ${bestDegree}. Its fit may not have enough flexibility to capture the signal, so it underfits. Increasing complexity helped here, up to the point where test error reached its minimum.`;
+    }
+
+    function lockGuess() {
+      if (phase !== "explore") return;
+      const guess = currentDegree;
+      const bestDegree = roundData.bestDegree;
+      const score = scoreForDegree(guess);
+      records.push({
+        round: roundNumber,
+        guess,
+        bestDegree,
+        score,
+        guessTrainMse: roundData.results[guess - 1].trainMse,
+        guessTestMse: roundData.results[guess - 1].testMse,
+        // Preserve this round's signal because roundData is replaced at the next round.
+        signalName: roundSignals[roundNumber - 1].signalName,
+        signalDescription: roundSignals[roundNumber - 1].signalDescription
+      });
+      phase = "revealed";
+      ui.roundTitle.textContent = `Round ${roundNumber} · Results revealed`;
+      ui.roundSubtitle.textContent = `Your degree ${guess} guess can now be compared with the held-out results.`;
+      ui.resultBox.classList.add("visible");
+      ui.resultTitle.textContent = guess === bestDegree ? "You found the best generalizer" : `Best generalizer: degree ${bestDegree}`;
+      ui.resultText.innerHTML = `<strong>Your locked guess:</strong> degree ${guess} · <strong>Best test degree:</strong> ${bestDegree} · <strong>Guess score:</strong> ${score}/100.<br>${explainResult(guess, bestDegree)}`;
+      ui.workbenchNote.textContent = "The test set is now revealed. Move the slider to compare both errors live; notice whether training error keeps falling after test error has started rising.";
+      ui.errorChartNote.textContent = "Both error curves are now visible. The green ring marks the degree with the lowest held-out test MSE.";
+      ui.nextButton.hidden = roundNumber !== 1;
+      if (roundNumber === 2) {
+        phase = "complete";
+        ui.roundTitle.textContent = "Round 2 · Arena complete";
+        ui.roundSubtitle.textContent = "Review the debrief, then generate new datasets to play again.";
+        ui.restartButton.hidden = false;
+        showSummary();
+      }
+      updateHeader();
+      updateMetrics();
+    }
+
+    function showSummary() {
+      ui.summaryPanel.classList.add("visible");
+      const correct = records.filter(record => record.guess === record.bestDegree).length;
+      const average = Math.round(records.reduce((sum, record) => sum + record.score, 0) / records.length);
+      ui.summaryAttempts.textContent = records.length;
+      ui.summaryCorrect.textContent = `${correct} / ${records.length}`;
+      ui.summaryScore.textContent = `${average} / 100`;
+      const points = [
+        "Underfitting: a model that is too simple misses structure in the data, so both training and test errors tend to be high.",
+        "Overfitting: a highly flexible model can learn random noise in the training sample. Training error may keep falling while test error rises.",
+        "Generalization: choose complexity using performance on data that was not used to fit the model—not training error alone."
+      ];
+      ui.learningPoints.innerHTML = points.map(point => `<li>${point}</li>`).join("");
+    }
+
+    function sanitizeFilenamePart(value) {
+      const sanitized = value
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9_-]+/g, "_")
+        .replace(/^[_-]+|[_-]+$/g, "")
+        .slice(0, 48);
+      return sanitized || "player";
+    }
+
+    function exportSessionData() {
+      const playerName = ui.exportPlayerName.value.trim();
+      if (!playerName) {
+        ui.exportPlayerName.setCustomValidity("Enter a player name or ID before exporting.");
+        ui.exportPlayerName.reportValidity();
+        ui.exportPlayerName.focus();
+        return;
+      }
+      ui.exportPlayerName.setCustomValidity("");
+
+      const exportedAt = new Date();
+      const exportData = {
+        playerName,
+        exportedAt: exportedAt.toISOString(),
+        records: records.map(record => ({
+          round: record.round,
+          guessedDegree: record.guess,
+          bestDegree: record.bestDegree,
+          score: record.score,
+          guessTrainMse: record.guessTrainMse,
+          guessTestMse: record.guessTestMse,
+          signalName: record.signalName,
+          signalDescription: record.signalDescription
+        }))
+      };
+
+      const jsonBlob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const downloadUrl = URL.createObjectURL(jsonBlob);
+      const downloadLink = document.createElement("a");
+      const safePlayerName = sanitizeFilenamePart(playerName);
+      const safeTimestamp = exportedAt.toISOString().replace(/[:.]/g, "-");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `playtest_${safePlayerName}_${safeTimestamp}.json`;
+      downloadLink.style.display = "none";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    }
+
+    function startRound(number) {
+      roundNumber = number;
+      currentDegree = 3;
+      phase = "explore";
+      roundData = buildRound(number);
+      roundSignals[number - 1] = {
+        signalName: roundData.signal.name,
+        signalDescription: roundData.signal.description
+      };
+      roundResults = roundData.results;
+      ui.slider.value = String(currentDegree);
+      ui.roundTitle.textContent = `Round ${number} · Find the balance`;
+      ui.roundSubtitle.textContent = "Explore the curve, then lock in your prediction.";
+      ui.datasetTag.textContent = `Dataset ${number} · random sample`;
+      ui.resultBox.classList.remove("visible");
+      ui.resultText.textContent = "";
+      ui.workbenchNote.textContent = "The test set is held back while you explore. Training error is useful, but it cannot tell you by itself how well a model will generalize.";
+      ui.errorChartNote.textContent = "Training error is visible. The held-out curve is sealed until you lock your guess.";
+      ui.nextButton.hidden = true;
+      ui.restartButton.hidden = true;
+      ui.summaryPanel.classList.remove("visible");
+      updateHeader();
+      updateMetrics();
+    }
+
+    function restartGame() {
+      records = [];
+      roundSignals = [];
+      lastSignalIndex = -1;
+      startRound(1);
+    }
+
+    ui.slider.addEventListener("input", event => {
+      currentDegree = Number(event.target.value);
+      updateMetrics();
+    });
+    ui.lockButton.addEventListener("click", lockGuess);
+    ui.nextButton.addEventListener("click", () => startRound(2));
+    ui.restartButton.addEventListener("click", restartGame);
+    document.getElementById("summaryRestart").addEventListener("click", restartGame);
+    ui.exportSessionButton.addEventListener("click", exportSessionData);
+    ui.exportPlayerName.addEventListener("input", () => ui.exportPlayerName.setCustomValidity(""));
+    window.addEventListener("resize", () => { drawFitChart(); drawErrorChart(); });
+
+    try {
+      startRound(1);
+    } catch (error) {
+      console.error(error);
+      document.querySelector("main").innerHTML = `<section class="panel"><div class="panel-inner"><h2>Unable to start the simulation</h2><p class="subhead">${String(error.message || error)}</p><p class="subhead">Reload the page to generate a fresh dataset. This may be caused by an unsupported or restricted browser environment.</p></div></section>`;
+    }
+  </script>
+</body>
+</html>
