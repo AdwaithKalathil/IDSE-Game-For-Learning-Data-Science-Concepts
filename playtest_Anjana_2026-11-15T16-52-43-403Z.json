@@ -1,0 +1,26 @@
+{
+  "playerName": "Anjana",
+  "exportedAt": "2026-11-15T16:52:43.403Z",
+  "records": [
+    {
+      "round": 1,
+      "guessedDegree": 6,
+      "bestDegree": 5,
+      "score": 61,
+      "guessTrainMse": 0.054389392900693806,
+      "guessTestMse": 0.1252848241138461,
+      "signalName": "Wavy signal",
+      "signalDescription": "a smooth wave with a slight trend"
+    },
+    {
+      "round": 2,
+      "guessedDegree": 5,
+      "bestDegree": 8,
+      "score": 100,
+      "guessTrainMse": 0.04919768972795107,
+      "guessTestMse": 0.054223006248074516,
+      "signalName": "Asymmetric signal",
+      "signalDescription": "a curved trend with an extra oscillation"
+    }
+  ]
+}
