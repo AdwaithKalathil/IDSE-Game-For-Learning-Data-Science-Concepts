@@ -1,0 +1,26 @@
+{
+  "playerName": "Arnav",
+  "exportedAt": "2026-11-15T16:53:12.271Z",
+  "records": [
+    {
+      "round": 1,
+      "guessedDegree": 3,
+      "bestDegree": 1,
+      "score": 98,
+      "guessTrainMse": 0.10989926406814617,
+      "guessTestMse": 0.14920243369252678,
+      "signalName": "Asymmetric signal",
+      "signalDescription": "a curved trend with an extra oscillation"
+    },
+    {
+      "round": 2,
+      "guessedDegree": 6,
+      "bestDegree": 5,
+      "score": 92,
+      "guessTrainMse": 0.042394886644048,
+      "guessTestMse": 0.06735274332738757,
+      "signalName": "Wavy signal",
+      "signalDescription": "a smooth wave with a slight trend"
+    }
+  ]
+}
